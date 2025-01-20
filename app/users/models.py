@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from xmlrpc.client import DateTime
 
 from app.config.database import Base
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime

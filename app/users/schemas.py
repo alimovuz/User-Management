@@ -26,9 +26,18 @@ class UserCreateResponse(BaseModel):
 
 class UsersSchema(BaseModel):
     id: int
+    username: str
+    email: EmailStr
+
+    class Config:
+        from_attributes = True
+
+class SingleUserSchema(BaseModel):
+    id: int
     first_name: str
     last_name: str
     username: str
+    email: EmailStr
 
 
 class LoginRequest(BaseModel):
