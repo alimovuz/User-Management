@@ -1,5 +1,4 @@
 from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from starlette import status
@@ -9,7 +8,8 @@ from app.config.security import create_access_token, generate_jti, create_refres
 from app.users.models import User
 from app.users.schemas import UserCreateRequest, UserCreateResponse, LoginRequest, LoginResponse, UsersSchema, \
     SingleUserSchema
-from app.users.services import is_existing_user, create_user, authenticate_user, save_token, get_current_user
+from app.users.services import is_existing_user, create_user, authenticate_user, save_token, get_current_user, \
+    logout_user
 import os
 
 user_router = APIRouter(
@@ -61,6 +61,11 @@ async def login(data: LoginRequest, session: Session = Depends(get_db)):
     }
 
 
+@user_router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(refresh_token: str, session: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return await logout_user(refresh_token=refresh_token, db=session)
+
+
 @user_router.get('', response_model=List[UsersSchema])
 async def get_users(session: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     users = session.query(User).all()
@@ -68,15 +73,16 @@ async def get_users(session: Session = Depends(get_db), current_user: User = Dep
 
 
 @user_router.get('/{user_id}', response_model=SingleUserSchema)
-async def get_single_user(user_id: int, session: Session = Depends(get_db)):
+async def get_single_user(user_id: int, session: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return user
 
+
 @user_router.put('/{user_id}', response_model=UserCreateResponse)
-async def update_user(user_id, data: UserCreateRequest, session: Session = Depends(get_db)):
+async def update_user(user_id, data: UserCreateRequest, session: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_user = session.query(User).filter_by(id=user_id).first()
     if not db_user:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -88,4 +94,15 @@ async def update_user(user_id, data: UserCreateRequest, session: Session = Depen
 
     session.commit()
     session.refresh(db_user)
+    return db_user
+
+
+@user_router.delete('/{user_id}', response_model=UsersSchema)
+async def delete_user(user_id: int, session: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_user = session.query(User).filter_by(id=user_id).first()
+    if not db_user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    session.delete(db_user)
+    session.commit()
     return db_user

@@ -83,3 +83,16 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(b
         return user
     except PyJWTError:
         raise credentials_exception
+
+async def logout_user(refresh_token: str, db: Session):
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload["jti"]
+    except PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    db_token = db.query(Token).filter(Token.jti == jti).first()
+    if db_token:
+        db.delete(db_token)
+        db.commit()
+    return {"message": "Logout successful"}
